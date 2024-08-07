@@ -1,24 +1,45 @@
 # Leveraging Graph Convolutional Networks to Predict Antibiotic Susceptibility to Bacterial Strains.
 
-  This research aims to develop a predictive model using graph convolutional networks (GCNs) to accurately predict the effectiveness of antibiotics against unique bacterial strains. The GCN model will be trained on an extensive dataset comprised of thousands of experimental microbiology measurements. By leveraging this data, the model will learn the intricate patterns and relationships between bacterial genetics and their antibiotic susceptibility. This can significantly enhance the understanding of bacterial resistance mechanisms and fost the development of new antibiotics and treatment strategies. Further, it can aid the identification of suitable antibiotics for the treatment of bacterial infections, thus improving clinical outcomes and combatting the growth of antibiotic resistance.
+Inputs: (all in main function)
+- AMR_download:  (str) title of downloaded text file with bacteria data from PATRIC database.
+- anti_url: (str) url link to antibiotic data from STRING database to be mapped with PATRIC data by taxon ID
+- 
 
-Node Features and Drug Association:
-  Each instance of bacteria data is represented by its own graph, with nodes denoting proteins, and edges symbolizing protein-protein interactions. Each node will have features generated from amino acid sequences of the bacterial proteins, and some will have drug association scores that indicate how strongly an antibiotic targets a protein. However, it's unlikely all bacterial proteins will have that information for multiple antibiotics.
+def main():
+    """
+    Gathering data from PATRIC and STRING
+    """
+    AMR_download = 'PATRIC_genomes_AMR.txt'
+    anti_url = 'https://stringdb-downloads.org/download/species.v12.0.txt'
+    antis = STRING_data(anti_url, ['#taxon_id', 'STRING_name_compact'])
+    bact = AMR_data(AMR_download, ['genome_name','taxon_id', 'antibiotic', 'resistant_phenotype'])
+    combined_data = mapping(bact, antis)
+    make_csv(combined_data, 'mapped_data.csv')
+    remove_incomplete_data('/work/estrick/main_project/mapped_data.csv', 'resistant_phenotype', '/work/estrick/main_project/clean_mapped_data.csv')
+    """
+    Gathering files for GCN
+    """
+    bact_proteins_link = 'https://stringdb-downloads.org/download/protein.links.v12.0/'
+    sequences_link = 'https://stringdb-downloads.org/download/protein.sequences.v12.0/'
+    bacteria_data(combined_data, bact_proteins_link)
+    protein_sequences = sequences(combined_data, sequences_link)
+    unzip_files('bacteria_graphs')
+    unzip_files('protein sequences')
+    move_size_files('bacteria_graphs')
+    move_size_files('protein_sequences')
+    """
+    Creating graphs
+    """
+    all_graphs('/work/estrick/main_project/bacteria_proteins', '/work/estrick/main_project/bacteria_graphs')
+    """
+    Creating histograms and other data statistics
+    """
+    susceptibility('/work/estrick/main_project/clean_mapped_data.csv')
+    unique_instances('/work/estrick/main_project/clean_mapped_data.csv', 'taxon_id')
+    stats = statistics('/work/estrick/main_project/bacteria_graphs', '/work/estrick/main_project/stats.csv')
+    histograms('/work/estrick/main_project/stats.csv', '/work/estrick/main_project/histograms')
+    graph_ratio('/work/estrick/main_project/bacteria_proteins', '/work/estrick/main_project/stats.csv', '/work/estrick/main_project/histograms')
+    print("All done!")
 
-Data Collection and Curation:
-  Large scale data on antimicrobial resistance (AMR) was obtained from the PATRIC database. From this database, instances comprising of bacterial strain, antibiotic, and susceptibility information were extracted. Then, these bacteria strains were mapped to the STRING database of protein-protein interaction networks. Node embeddings were then calculated from amino acid sequence data also from STRING. The graphs generated were made from their largest connected component. Targets for antibiotics and their corresponding associated scores will be extracted from the STITCH database of interaction networks of chemicals and proteins.
-
-GCN Model Structure:
-- 3 convolutional layers that will use the ReLU activation function to capture hierarchical structures in protein interaction networks.
-- A global pooling layer that will distill node features into a graph representation
-- 2 fully connected layers that will use the ReLU activation function to refine the model's features.
-- An output layer that will use the Softmax function to predict whether a strain is sensitive or resistant to an antibiotic
-- Binary cross-entropy loss function and Adam optimizer will be used for training.
-- Five-fold cross validation, evaluating effectiveness, accuracy, precision, recall, F1-score, and ROC-AUC score.
-
-Repository Contents:
-  This algorithm written in Python, generates the graphs to later be used in training the GCN model. It includes the process of data curation, obtaining the AMR data, the protein sequence data, and the protein-protein interaction data. It also assesses the diversity of the curated data and graphs generated from that data, producing histograms using Networkx assessing the number of nodes, number of edges, graph density, graph diameter, and average degree of nodes in each created graph. The number of unique bacterial strains and the number of resistant vs. susceptible data was also found, and a the ratio of the size of the graphs created from the largest connected component and its associated graph with all components is shown in a histogram as well.
-
-Acknowledgements:
-This material is based upon work supported by the National Science Foundation under award OAC-2150491 with additional support from the Center for Computation & Technology at Louisiana State University, and my research mentor Michal Brylinski.
-Computer support is provided by HPC@LSU computing.
+if __name__ == "__main__":
+    main()
